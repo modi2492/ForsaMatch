@@ -1,0 +1,21 @@
+/* app/globals.css */
+
+/* استيراد خط القاهرة (Cairo) من Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+/* الطريقة الصحيحة لإضافة Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* تعريف الخط الأساسي للتطبيق */
+:root {
+  --font-family-base: 'Cairo', sans-serif;
+}
+
+/* تطبيق الخط على الجسم */
+body {
+  font-family: var(--font-family-base);
+  /* أنماط أساسية للتطبيق */
+  @apply bg-gray-50 text-gray-800;
+}

@@ -1,0 +1,93 @@
+// src/app/dashboard/page.tsx
+"use client";
+
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { useState } from "react";
+
+export default function DashboardPage() {
+  const user = useQuery(api.users.getAuthenticatedUser);
+  const jobs = useQuery(api.jobs.getJobsBySpecialization, user ? { specializations: user.specializations } : 'skip');
+  
+  const updatePreferences = useMutation(api.users.updateUserPreferences); // سنضيف هذه الدالة لاحقًا
+  const [selectedSpecs, setSelectedSpecs] = useState(user?.specializations || []);
+  
+  if (user === undefined || jobs === undefined) {
+    return <div className="p-8">جاري التحميل...</div>;
+  }
+
+  if (!user) {
+    return <div className="p-8">يجب عليك تسجيل الدخول لعرض هذه الصفحة.</div>;
+  }
+
+  const allSpecializations = ["برمجة", "ترجمة", "تسويق", "تصميم"]; // قائمة التخصصات المتاحة
+  
+  const handleSpecChange = (spec: string) => {
+    setSelectedSpecs(prev => {
+      if (prev.includes(spec)) {
+        return prev.filter(s => s !== spec);
+      } else {
+        return [...prev, spec];
+      }
+    });
+  };
+
+  const handleUpdatePreferences = async () => {
+    // تحديث تفضيلات المستخدم في قاعدة البيانات
+    // سيتم استدعاء الدالة الجديدة `updateUserPreferences`
+    await updatePreferences({ specializations: selectedSpecs, frequency: user.frequency });
+    alert("تم تحديث تفضيلاتك بنجاح!");
+  };
+
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-4">لوحة تحكم ForsaMatch</h1>
+      <p className="text-gray-600 mb-8">مرحباً، {user.email}!</p>
+      
+      {/* قسم تفضيلات المستخدم */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+        <h2 className="text-xl font-semibold mb-4">تفضيلاتك</h2>
+        <div className="flex flex-wrap gap-2">
+          {allSpecializations.map(spec => (
+            <button
+              key={spec}
+              onClick={() => handleSpecChange(spec)}
+              className={`px-4 py-2 rounded-full border ${
+                selectedSpecs.includes(spec) ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"
+              }`}
+            >
+              {spec}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleUpdatePreferences}
+          className="mt-4 px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+        >
+          حفظ التفضيلات
+        </button>
+      </div>
+
+      {/* قسم الوظائف المقترحة */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-semibold mb-4">وظائف مقترحة لك</h2>
+        {jobs && jobs.length > 0 ? (
+          <ul>
+            {jobs.map(job => (
+              <li key={job._id} className="border-b last:border-0 py-4">
+                <h3 className="text-lg font-bold">{job.title}</h3>
+                <p className="text-gray-600 my-2">{job.description}</p>
+                <a href={job.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                  التقديم على الوظيفة
+                </a>
+                <span className="ml-4 text-sm text-gray-400">التخصص: {job.specialization}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>لا توجد وظائف مقترحة حاليًا.</p>
+        )}
+      </div>
+    </div>
+  );
+}
