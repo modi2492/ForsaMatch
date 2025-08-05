@@ -10,21 +10,17 @@ export const sendMagicLink = mutation({
   handler: async (ctx, args) => {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    // 1. إنشاء رمز فريد
     const loginToken = generateRandomString(32);
-    const tokenExpiration = Date.now() + 15 * 60 * 1000; // 15 دقيقة
+    const tokenExpiration = Date.now() + 15 * 60 * 1000;
 
-    // 2. تحديث أو إنشاء المستخدم في قاعدة البيانات
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
 
     if (existingUser) {
-      // إذا كان المستخدم موجودًا، قم بتحديث الرمز وتاريخ انتهاء الصلاحية
       await ctx.db.patch(existingUser._id, { loginToken, tokenExpiration });
     } else {
-      // إذا لم يكن موجودًا، أنشئ مستخدمًا جديدًا
       await ctx.db.insert("users", {
         email: args.email,
         specializations: [],
@@ -34,7 +30,6 @@ export const sendMagicLink = mutation({
       });
     }
 
-    // 3. إرسال البريد الإلكتروني عبر Resend
     const loginLink = `${process.env.NEXT_PUBLIC_SITE_URL}/login?token=${loginToken}&email=${encodeURIComponent(args.email)}`;
 
     await resend.emails.send({
@@ -64,8 +59,6 @@ export const verifyMagicLink = mutation({
       user.tokenExpiration !== undefined &&
       user.tokenExpiration > Date.now()
     ) {
-      // الرمز صحيح ولم تنته صلاحيته.
-      // نستخدم undefined لمسح الحقول الاختيارية
       await ctx.db.patch(user._id, { loginToken: undefined, tokenExpiration: undefined });
       return { success: true, user };
     }
@@ -74,38 +67,30 @@ export const verifyMagicLink = mutation({
   },
 });
 
-// دالة للحصول على المستخدم المسجل دخوله حاليًا
+// دالة للحصول على المستخدم المسجل دخوله حاليًا (تم تعديلها)
 export const getAuthenticatedUser = query({
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
 
     return user;
   },
 });
 
-// دالة لتحديث تفضيلات المستخدم
+// دالة لتحديث تفضيلات المستخدم (تم تعديلها)
 export const updateUserPreferences = mutation({
   args: {
+    email: v.string(), // إضافة البريد الإلكتروني كمدخل
     specializations: v.array(v.string()),
     frequency: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("يجب تسجيل الدخول لتحديث التفضيلات.");
-    }
-
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
 
     if (user) {
@@ -115,5 +100,6 @@ export const updateUserPreferences = mutation({
       });
       return user._id;
     }
+    throw new Error("يجب تسجيل الدخول لتحديث التفضيلات.");
   },
 });
